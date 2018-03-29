@@ -33,6 +33,7 @@ public static async Task Run(EventData myEventHubMessage, TraceWriter log)
         {
             // handle any parsing errors here
             args.ErrorContext.Handled = true;
+            return;
         }
     });
 
