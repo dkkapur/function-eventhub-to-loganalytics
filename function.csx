@@ -17,7 +17,7 @@ static string LogName = "PerformanceCounter";
 static string TimeStampField = "";
 static System.Net.Http.HttpClient client = new System.Net.Http.HttpClient();
 
-public static void Run(EventData myEventHubMessage, TraceWriter log)
+public static async Task Run(EventData myEventHubMessage, TraceWriter log)
 {
     //log.Info($"{Encoding.UTF8.GetString(myEventHubMessage.GetBytes())}");
 
@@ -74,15 +74,13 @@ public static void Run(EventData myEventHubMessage, TraceWriter log)
         // here's your string
         string result = JsonConvert.SerializeObject(newEvent);
 
-        log.Info(result);
-
         // Create a hash for the API signature
         string datestring = DateTime.UtcNow.ToString("r");
         string stringToHash = "POST\n" + result.Length + "\napplication/json\n" + "x-ms-date:" + datestring + "\n/api/logs";
         string hashedString = BuildSignature(stringToHash, sharedKey);
         string signature = "SharedKey " + customerId + ":" + hashedString;
 
-        PostData(signature, datestring, result);
+        await PostDataAsync(signature, datestring, result, log);
     }
 
 }
@@ -101,29 +99,39 @@ public static string BuildSignature(string message, string secret)
 }
 
 // PostData
-public static void PostData(string signature, string date, string json)
+public static async Task PostDataAsync(string signature, string date, string json, TraceWriter log)
 {
     try
     {
         string url = "https://" + customerId + ".ods.opinsights.azure.com/api/logs?api-version=2016-04-01";
 
-        client.DefaultRequestHeaders.Add("Accept", "application/json");
-        client.DefaultRequestHeaders.Add("Log-Type", LogName);
-        client.DefaultRequestHeaders.Add("Authorization", signature);
-        client.DefaultRequestHeaders.Add("x-ms-date", date);
-        client.DefaultRequestHeaders.Add("time-generated-field", TimeStampField);
+        using(HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, new Uri(url)))
+        {
+            HttpContent httpContent = new StringContent(json, Encoding.UTF8);
+            httpContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-        System.Net.Http.HttpContent httpContent = new StringContent(json, Encoding.UTF8);
-        httpContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-        Task<System.Net.Http.HttpResponseMessage> response = client.PostAsync(new Uri(url), httpContent);
+            request.Content = httpContent; 
+            request.Headers.Add("Accept", "application/json");
+            request.Headers.Add("Log-Type", LogName);
+            request.Headers.Add("Authorization", signature);
+            request.Headers.Add("x-ms-date", date);
+            request.Headers.Add("time-generated-field", TimeStampField);
+            
+            using (HttpResponseMessage response = await client.SendAsync(request))
+            {
+                if (!response.IsSuccessStatusCode)
+                {
+                    string errorResponse = await response.Content.ReadAsStringAsync();
 
-        System.Net.Http.HttpContent responseContent = response.Result.Content;
-        string result = responseContent.ReadAsStringAsync().Result;
-        Console.WriteLine("Return Result: " + result);
+                    log.Info("Status code: " + response.StatusCode);
+                    log.Warning("Error response: " + errorResponse);
+                }
+            }
+        }
     }
     catch (Exception excep)
     {
-        Console.WriteLine("API Post Exception: " + excep.Message);
+        log.Warning("API Post Exception: " + excep.Message);
     }
 }
 
@@ -135,12 +143,12 @@ public class laEvent
 {
     public string TimeCurrent { get; set;} 
     public string SourceSystem { get; set;}
-    public string Computer {get; set;}
     public string CounterPath { get; set;}
     public string ObjectName { get; set;}
     public string CounterName { get; set;}
     public string InstanceName { get; set;}
     public double CounterValue { get; set;}
     public string SampleCount { get; set;}
+    public string Computer {get; set;}
 }
 
