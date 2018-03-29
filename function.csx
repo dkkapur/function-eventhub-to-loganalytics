@@ -11,8 +11,8 @@ using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 
-static string customerId = "8516a918-4e0f-47dd-a3e2-01a9a95102b1";
-static string sharedKey = "HaAZ7I4PZgo6uN7fiAUjkwJpBdK61hj8Zi7LI/s5uIzU6UI3J74SeycB45gvXvr8dWlL1Q8xDgpbzUnw0OYNrg==";
+static string customerId = "***add oms workspace id here***";
+static string sharedKey = "***add shared key here***";
 static string LogName = "PerformanceCounter";
 static string TimeStampField = "";
 static System.Net.Http.HttpClient client = new System.Net.Http.HttpClient();
