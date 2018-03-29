@@ -11,8 +11,8 @@ using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 
-static string customerId = "***add oms workspace id here***";
-static string sharedKey = "***add shared key here***";
+static string customerId = "8516a918-4e0f-47dd-a3e2-01a9a95102b1";
+static string sharedKey = "HaAZ7I4PZgo6uN7fiAUjkwJpBdK61hj8Zi7LI/s5uIzU6UI3J74SeycB45gvXvr8dWlL1Q8xDgpbzUnw0OYNrg==";
 static string LogName = "PerformanceCounter";
 static string TimeStampField = "";
 static System.Net.Http.HttpClient client = new System.Net.Http.HttpClient();
@@ -27,61 +27,71 @@ public static async Task Run(EventData myEventHubMessage, TraceWriter log)
   
     var input = Encoding.UTF8.GetString(myEventHubMessage.GetBytes());
     
-    RootObject rootObject = JsonConvert.DeserializeObject<RootObject>(input, new JsonSerializerSettings
+    try
+
     {
-        Error = (object sender, Newtonsoft.Json.Serialization.ErrorEventArgs args) =>
+        RootObject rootObject = JsonConvert.DeserializeObject<RootObject>(input, new JsonSerializerSettings
         {
-            // handle any parsing errors here
-            args.ErrorContext.Handled = true;
-            return;
-        }
-    });
+            Error = (object sender, Newtonsoft.Json.Serialization.ErrorEventArgs args) =>
+            {
+                // handle any parsing errors here
+                args.ErrorContext.Handled = false;
+                return;
+            }
+        });
 
-    foreach (Record record in rootObject.records)
+        foreach (Record record in rootObject.records)
+        {
+            string[] parts = record.metricName.Split(new[] { "\\" }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (parts.Length < 2)
+            {
+                continue;
+            }
+
+            string instanceName = "";
+            string objectName = parts[0];
+            string counterName = parts[1];
+
+            int first = objectName.IndexOf('(');
+            int last = objectName.LastIndexOf(')');
+
+            if (first >= 0 && last > 0 && last > first)
+            {
+                instanceName = objectName.Substring(first + 1, last - first - 1);
+                objectName = objectName.Substring(0, first);
+            }
+
+            laEvent newEvent = new laEvent()
+            {
+                TimeCurrent = record.time,
+                SourceSystem = "Function",
+                CounterPath = record.metricName,
+                ObjectName = objectName,
+                CounterName = counterName,
+                InstanceName = instanceName,
+                CounterValue = record.last,
+                SampleCount = record.timeGrain,
+                Computer = record.dimensions.RoleInstance
+            };
+
+            // here's your string
+            string result = JsonConvert.SerializeObject(newEvent);
+
+            // Create a hash for the API signature
+            string datestring = DateTime.UtcNow.ToString("r");
+            string stringToHash = "POST\n" + result.Length + "\napplication/json\n" + "x-ms-date:" + datestring + "\n/api/logs";
+            string hashedString = BuildSignature(stringToHash, sharedKey);
+            string signature = "SharedKey " + customerId + ":" + hashedString;
+
+            await PostDataAsync(signature, datestring, result, log);
+        }
+    }
+    catch (JsonException)
     {
-        string[] parts = record.metricName.Split(new[] { "\\" }, StringSplitOptions.RemoveEmptyEntries);
-
-        if (parts.Length < 2)
-        {
-            continue;
-        }
-
-        string instanceName = "";
-        string objectName = parts[0];
-        string counterName = parts[1];
-
-        int first = objectName.IndexOf('(');
-        int last = objectName.LastIndexOf(')');
-
-        if (first >= 0 && last > 0 && last > first)
-        {
-            instanceName = objectName.Substring(first + 1, last - first - 1);
-            objectName = objectName.Substring(0, first);
-        }
-
-        laEvent newEvent = new laEvent()
-        {
-            TimeCurrent = record.time,
-            SourceSystem = "Function",
-            CounterPath = record.metricName,
-            ObjectName = objectName,
-            CounterName = counterName,
-            InstanceName = instanceName,
-            CounterValue = record.last,
-            SampleCount = record.timeGrain,
-            Computer = record.dimensions.RoleInstance
-        };
-
-        // here's your string
-        string result = JsonConvert.SerializeObject(newEvent);
-
-        // Create a hash for the API signature
-        string datestring = DateTime.UtcNow.ToString("r");
-        string stringToHash = "POST\n" + result.Length + "\napplication/json\n" + "x-ms-date:" + datestring + "\n/api/logs";
-        string hashedString = BuildSignature(stringToHash, sharedKey);
-        string signature = "SharedKey " + customerId + ":" + hashedString;
-
-        await PostDataAsync(signature, datestring, result, log);
+        // this typically means we got an event type that we don't support in this function.
+        // you can log this out, but it may be very verbose if there are a lot of unsupported event types.
+        return;
     }
 
 }
@@ -152,4 +162,3 @@ public class laEvent
     public string SampleCount { get; set;}
     public string Computer {get; set;}
 }
-
