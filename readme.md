@@ -20,35 +20,35 @@ To use this, I assume you have the following set up:
 #### Collect performance counters
 The first step is to actually collect some performance counters! This is most helpful in getting recommended perf counters for Reliable Services and Actors into Log Analytics. Go get your ARM template and add some performance counters to the WadCfg section (where WAD is configured). Here is a random selection of perf counters that I added to test this:
 
-    ```json
-    "PerformanceCounters": {
-        "scheduledTransferPeriod": "PT1M",
-        "PerformanceCounterConfiguration": [
-            {
-                "counterSpecifier": "\\Processor(_Total)\\% Processor Time",
-                "sampleRate": "PT5M",
-                "unit": "Percent"
-            },
-            {
-                "counterSpecifier": "\\Service Fabric Actor(*)\\Average milliseconds per request",
-                "sampleRate": "PT1M"
-            },
-            {
-                "counterSpecifier": "\\Service Fabric Service(*)\\Average milliseconds per request",
-                "sampleRate": "PT1M"
-            },
-            {
-                "counterSpecifier": "\\Service Fabric Actor Method(*)\\Invocations/Sec",
-                "sampleRate": "PT1M"
-            },
-            {
-                "counterSpecifier": "\\.NET CLR Memory(*)\\% Time in GC",
-                "sampleRate": "PT1M",
-                "unit": "Percent"
-            }
-        ]
-    }
-    ```
+```json
+"PerformanceCounters": {
+    "scheduledTransferPeriod": "PT1M",
+    "PerformanceCounterConfiguration": [
+        {
+            "counterSpecifier": "\\Processor(_Total)\\% Processor Time",
+            "sampleRate": "PT5M",
+            "unit": "Percent"
+        },
+        {
+            "counterSpecifier": "\\Service Fabric Actor(*)\\Average milliseconds per request",
+            "sampleRate": "PT1M"
+        },
+        {
+            "counterSpecifier": "\\Service Fabric Service(*)\\Average milliseconds per request",
+            "sampleRate": "PT1M"
+        },
+        {
+            "counterSpecifier": "\\Service Fabric Actor Method(*)\\Invocations/Sec",
+            "sampleRate": "PT1M"
+        },
+        {
+            "counterSpecifier": "\\.NET CLR Memory(*)\\% Time in GC",
+            "sampleRate": "PT1M",
+            "unit": "Percent"
+        }
+    ]
+}
+```
 
 #### Create and configure an EventHub
 
@@ -100,12 +100,12 @@ This requires 3 changes to your WadCfg:
 
 Once you've added the required perf counters and the EventHub sink to your WadCfg, update your cluster using an ARM upgrade. The easiest way to do this is to try redeploying a new resource group with the same template and parameter files. ARM will realize that these resources already exist, and just update the required delta between the old template and the new. 
 
-    ```powershell
-    New-AzureRmResourceGroupDeployment `
-        -ResourceGroupName dekapurwindowscluster `
-        -TemplateFile 'template.json' `
-        -TemplateParameterFile 'parameters.json' `
-    ```
+```ps
+New-AzureRmResourceGroupDeployment `
+    -ResourceGroupName dekapurwindowscluster `
+    -TemplateFile 'template.json' `
+    -TemplateParameterFile 'parameters.json' `
+```
 
 This should go through in under 15min. Check to see if you are collecting the right perf counters in your `WADPerformanceCounterTable` in your Storage account and make sure there is incoming request traffic to your EventHub.
 
