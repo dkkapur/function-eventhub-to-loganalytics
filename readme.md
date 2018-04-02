@@ -118,10 +118,22 @@ This should go through in under 15min. Check to see if you are collecting the ri
 5. Modify the values for the Log Analytics shared key and the customer id
 6. Save and run!
 
+#### Use the data!
+
+Data should start flowing to your Log Analytics workspace in about <=15min. It takes a few min initially but is pretty close to <1min once the input structure is recognized in the workspace. Try some fun queries like this one - which picks up the "Average milliseconds per request" perf counter and creates a chart for each of your nodes.
+
+```
+PerformanceCounter_CL
+| where CounterName_s == "Average milliseconds per request" 
+| summarize AvgMsPerRequest = avg(CounterValue_d) by Computer, bin(TimeGenerated, 1m)
+| render timechart
+```
+
 ## Next steps for this repo
 Please feel free to share / improve this as you see fit! Here is a short list for things that need to be updated for this solution:
 * the function currently process each incoming request independently, and deserializes/re-seralizes individually for each one. It would be a lot more efficient to open up a stream to do this. 
 * the function is currently written as a .csx file that has to be deployed as an App Service Function App in Azure Portal. There's a dir in this repo called "vs-solution" where I'm trying to rebuild this as a .NET app that can be deployed indepedently. The ideal state for me would be to have an app that contains the required Funtions runtime, and can be deployed as a container on an SF cluster or elsewhere.
-* I'm working on improving this readme to have better instructions - albeit slowly!
+* more testing to make sure this is a stable solution!
+* I'm working on improving this readme to have better instructions - albeit slowly.
 
 Anyway, hope this was useful! Looking forward to hearing your feedback. 
