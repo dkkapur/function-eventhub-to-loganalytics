@@ -7,6 +7,8 @@ The basic path here is:
 * A function app is running with an EventHub trigger, on each new request reaching an EventHub
 * The function extracts the incoming EventData, restructures it to have the PerfCounter properties other performance counters in Log Analytics will have (if collected by the OMS Agent), and sends it to your workspace
 
+*Note - this uses Functions v1 stuff, i.e. uses the ServiceBus.Messaging.EventData data type rather than the EventHubs.EventData available in v2.*
+
 ## Basic instructions
 
 ### Prereqs
